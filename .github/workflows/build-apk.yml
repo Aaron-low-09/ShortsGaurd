@@ -1,0 +1,57 @@
+name: Build ShortsGuard APK
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find and extract Android project
+        run: |
+          ZIP=$(find . -maxdepth 1 -type f -iname "*.zip" | head -n 1)
+
+          if [ -z "$ZIP" ]; then
+            echo "No ZIP file found!"
+            exit 1
+          fi
+
+          echo "Using ZIP: $ZIP"
+          mkdir build-source
+          unzip -q "$ZIP" -d build-source
+
+          echo "Extracted files:"
+          find build-source -maxdepth 3 -type f | head -50
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: |
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+          yes | sdkmanager --licenses || true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Build APK
+        working-directory: build-source/ShortsGuard
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ShortsGuard-APK
+          path: build-source/ShortsGuard/app/build/outputs/apk/debug/app-debug.apk
